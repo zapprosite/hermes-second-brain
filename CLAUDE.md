@@ -2,7 +2,8 @@
 
 **Location:** `/srv/hermes-second-brain`
 **Purpose:** Mem0-backed knowledge graph for agents and Claude CLI integration
-**Status:** OPERATIONAL | **Last Updated:** 2026-04-25
+**Status:** OPERATIONAL | **Last Updated:** 2026-04-26
+**Version:** 1.1.0
 
 ---
 
@@ -19,6 +20,8 @@ Internet → Cloudflare Tunnel → Home Lab
          [:4010]          [:8642]          [:4000]
 ```
 
+**API Rate Limit:** 500 RPM (MiniMax M2.7 plano)
+
 ---
 
 ## Services
@@ -27,7 +30,36 @@ Internet → Cloudflare Tunnel → Home Lab
 |---------|------|--------|--------|
 | Hermes Agent | 8642 | ✅ ACTIVE | HTTP 200 |
 | Mem0 | 8642 | ✅ ACTIVE | Connected |
-| Qdrant | 6333 | ✅ ACTIVE | Vector DB |
+| Qdrant | 6333 | ✅ ACTIVE | 7 collections |
+| Ollama | 11434 | ✅ ACTIVE | 3 models |
+| Redis | 6379 | ✅ ACTIVE | coolify-redis, zappro-redis |
+
+---
+
+## Qdrant Collections (Gen5 NVMe)
+
+| Collection | Purpose | Instance |
+|------------|---------|----------|
+| `will` | Personal memories | Hermes |
+| `second-brain` | Knowledge graph | Hermes |
+| `mem0migrations` | Migration history | Hermes |
+| `claude-code-memory` | Claude CLI | Claude Code CLI |
+| `cursor-projects` | Cursor IDE | Cursor |
+| `vscode-memory` | VS Code Copilot | VS Code |
+| `codex-repo` | Codex CLI | Codex |
+
+**Storage:** `/tank/qdrant/` (Gen5 NVMe — Crucial T700 4TB)
+
+---
+
+## Subagents
+
+Hermes spawns subagents as Python processes:
+
+| Subagent | Path | Purpose |
+|----------|------|---------|
+| MemoryArchivist | `libs/subagents/memory_archivist.py` | Archive, compact, tag memories |
+| CollectionManager | `libs/subagents/collection_manager.py` | Qdrant collection lifecycle |
 
 ---
 
@@ -176,3 +208,4 @@ nexus-legacy-detector.sh full /srv/monorepo
 **Nexus Framework:** 7 modes × 7 agents = 49 specializations
 **Entry:** `nexus.sh --mode <mode>`
 **Docs:** `/srv/monorepo/docs/NEXUS-SRE-GUIDE.md`
+**SOUL.md:** `/srv/hermes-second-brain/SOUL.md`

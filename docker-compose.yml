@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "6334:6334"
+    environment:
+      - MEM0_BACKEND=qdrant
+      - MEM0_QDRANT_URL=http://qdrant:6333
+      - MEM0_QDRANT_COLLECTION=will
+      - MEM0_OLLAMA_URL=http://host.宿主.docker.internal:11434
+      - MEM0_OLLAMA_MODEL=nomic-ai/e5-mistral-7b-instruct
+      - MEM0_TASKS_DB_PATH=/srv/data/librarian/tasks.db
+    volumes:
+      - /srv/data/librarian:/srv/data/librarian
+    depends_on:
+      - qdrant
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - /srv/data/qdrant:/srv/data/qdrant

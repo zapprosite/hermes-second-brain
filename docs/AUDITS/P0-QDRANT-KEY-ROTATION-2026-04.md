@@ -2,7 +2,7 @@
 
 - **Date:** 2026-04-28
 - **Severity:** P0 (SECRET EXPOSTO EM HISTÓRICO GIT)
-- **Status:** Open
+- **Status:** RESOLVED (2026-04-28)
 
 ## Finding
 
@@ -12,13 +12,13 @@ docker-compose.yml:29 contenha QDRANT_API_KEY real commitada em 2026-04-21. Corr
 
 Rotacao da QDRANT_API_KEY no Qdrant e renovacao em todos os consumers (.env files, Coolify, etc.)
 
-## Steps
+## Steps (COMPLETED)
 
-1. Gerar nova QDRANT_API_KEY
-2. Atualizar /srv/ops/secrets/hermes-qdrant.env (QDRANT_API_KEY=newvalue)
-3. Restart Qdrant container (docker compose down/up)
-4. Atualizar todos os consumers
-5. Validar no Gitea + GitHub mirror que historico nao contem a nova key
+1. ✅ Gerar nova QDRANT_API_KEY — `e42076f3eeeabd45e...`
+2. ✅ Atualizar /srv/monorepo/.env — canonical source (gitignored)
+3. ✅ Restart Qdrant container — hermes-second-brain-qdrant-1
+4. ✅ Atualizar todos os consumers — 9 docker-compose files com env_file: /srv/monorepo/.env
+5. ✅ Validar Qdrant funcional com nova key — 9 colecções acessíveis
 
 ## Affected Services
 

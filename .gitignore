@@ -1,0 +1,54 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+*.p12
+secrets/
+ops/secrets/
+
+# runtime data
+data/
+runtime/
+logs/
+*.log
+logs/
+
+# databases
+*.sqlite
+*.sqlite3
+*.db
+tasks.db
+
+# qdrant / vector storage / backups
+qdrant_storage/
+storage/
+snapshots/
+backups/
+*.snapshot
+*.dump
+*.tar
+*.tar.gz
+*.zst
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# docker
+docker-data/
+compose.override.yml
+
+# memory exports
+exports/
+memories.json
+memories.jsonl
+memory-dump*
+
+# project summaries (local work)
+project-summaries/

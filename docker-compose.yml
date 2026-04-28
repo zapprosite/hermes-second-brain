@@ -26,5 +26,5 @@ services:
     volumes:
       - /tank/qdrant:/qdrant/storage
     environment:
-      - QDRANT__SERVICE__API_KEY=71cae77676e2a5fd552d172caa1c3200
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
     restart: unless-stopped

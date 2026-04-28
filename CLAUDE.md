@@ -1,211 +1,184 @@
-# Hermes Second Brain — Enterprise Knowledge Management
+# Hermes Second Brain — MEMORY LAYER
 
-**Location:** `/srv/hermes-second-brain`
-**Purpose:** Mem0-backed knowledge graph for agents and Claude CLI integration
-**Status:** OPERATIONAL | **Last Updated:** 2026-04-26
-**Version:** 1.1.0
+> **⚠️ READ FIRST:** This is part of the **HOMELAB MONOREPO** (`/srv/monorepo`)
+> All infrastructure context is in `/srv/monorepo/HARDWARE_HIERARCHY.md`
+>
+> **Classification:** INTERNAL | **Owner:** Platform Engineering
+> **Version:** 2.0.0 | **Updated:** 2026-04-26
 
 ---
 
-## Architecture
+## 🏠 Position in Homelab
 
 ```
-Internet → Cloudflare Tunnel → Home Lab
-                              ↓
-              ┌──────────────┼──────────────┐
-              ↓              ↓              ↓
-         gym.zappro.site  hermes.zappro.site  api.zappro.site
-           (Docker)       (Python/Mem0)      (Python)
-              ↓              ↓              ↓
-         [:4010]          [:8642]          [:4000]
+/srv/monorepo/                          ← SINGLE SOURCE OF TRUTH
+│
+├── hermes-second-brain/                 ← YOU ARE HERE (Mem0 Memory)
+│   ├── libs/
+│   │   ├── subagents/                 # Python spawned processes
+│   │   │   ├── memory_archivist.py   # Archive, compact, tag
+│   │   │   └── collection_manager.py # Qdrant lifecycle
+│   │   └── memory/
+│   │       ├── config.py             # Settings
+│   │       └── manager.py            # Mem0 client
+│   ├── SOUL.md                        # Security & Architecture
+│   └── docker-compose.yml              # Container config
+│
+├── ops/                               # IaC + Governance
+├── hermes/                            # Hermes Agency (symlink)
+└── apps/                              # Production services
 ```
 
-**API Rate Limit:** 500 RPM (MiniMax M2.7 plano)
+---
+
+## 🎯 Purpose
+
+**Hermes Second Brain** is the **persistent memory layer** for all agents:
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Memory API | Mem0 (:8642) | Unified memory interface |
+| Vector Store | Qdrant (:6333) | Semantic search storage |
+| Embeddings | Ollama (:11434) | Local embedding generation |
+| Cache | Redis (:6379) | Sessions & pub/sub |
 
 ---
 
-## Services
+## 🧠 Memory Architecture
 
-| Service | Port | Status | Health |
-|---------|------|--------|--------|
-| Hermes Agent | 8642 | ✅ ACTIVE | HTTP 200 |
-| Mem0 | 8642 | ✅ ACTIVE | Connected |
-| Qdrant | 6333 | ✅ ACTIVE | 7 collections |
-| Ollama | 11434 | ✅ ACTIVE | 3 models |
-| Redis | 6379 | ✅ ACTIVE | coolify-redis, zappro-redis |
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Hermes Second Brain                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐     │
+│  │ MiniMax  │───▶│  Mem0    │◀───│  Hermes  │◀───│  Any    │     │
+│  │  M2.7    │    │  API     │    │  Agent   │    │  Agent  │     │
+│  │ (500RPM) │    │  :8642   │    │  :8642   │    │         │     │
+│  └──────────┘    └────┬─────┘    └──────────┘    └──────────┘     │
+│                      │                                               │
+│                      ▼                                               │
+│               ┌──────────────┐    ┌──────────────┐                  │
+│               │   Qdrant     │◀───│   Ollama     │                  │
+│               │   :6333      │    │   :11434    │                  │
+│               │  7 Collections│    │  qwen2.5:3b │                  │
+│               └──────────────┘    │ nomic-embed │                  │
+│                                   └──────────────┘                  │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Qdrant Collections (Gen5 NVMe)
+## 📦 Collections (Qdrant — Gen5 NVMe)
 
-| Collection | Purpose | Instance |
-|------------|---------|----------|
-| `will` | Personal memories | Hermes |
-| `second-brain` | Knowledge graph | Hermes |
-| `mem0migrations` | Migration history | Hermes |
-| `claude-code-memory` | Claude CLI | Claude Code CLI |
-| `cursor-projects` | Cursor IDE | Cursor |
-| `vscode-memory` | VS Code Copilot | VS Code |
-| `codex-repo` | Codex CLI | Codex |
+| Collection | Vectors | Purpose | Status |
+|------------|---------|---------|--------|
+| `will` | 1973 | Personal memories | ✅ |
+| `second-brain` | 79 | Knowledge graph | ✅ |
+| `mem0migrations` | — | Migration history | ✅ |
+| `claude-code-memory` | — | Claude CLI memories | ✅ |
+| `cursor-projects` | — | Cursor IDE projects | ✅ |
+| `vscode-memory` | — | VS Code Copilot | ✅ |
+| `codex-repo` | — | Codex CLI repos | ✅ |
 
 **Storage:** `/tank/qdrant/` (Gen5 NVMe — Crucial T700 4TB)
 
 ---
 
-## Subagents
+## 🔧 Subagents
 
-Hermes spawns subagents as Python processes:
+Hermes spawns Python processes for specialized operations:
 
-| Subagent | Path | Purpose |
-|----------|------|---------|
-| MemoryArchivist | `libs/subagents/memory_archivist.py` | Archive, compact, tag memories |
-| CollectionManager | `libs/subagents/collection_manager.py` | Qdrant collection lifecycle |
+### MemoryArchivist
+```python
+from libs.subagents import MemoryArchivist
+
+archivist = MemoryArchivist(collection="will")
+archivist.archive_old_memories(days=30)
+archivist.compact_memories(max_per_user=100)
+archivist.tag_memories(query="projeto", add_tags=["important"])
+archivist.stats()
+```
+
+### CollectionManager
+```python
+from libs.subagents import CollectionManager
+
+cm = CollectionManager()
+cm.create_collection("new-instance", vector_size=768)
+cm.delete_collection("old-instance")
+cm.list_collections()
+cm.health_check()
+cm.stats()
+```
 
 ---
 
-## Nexus SRE Framework
+## 🔐 Security
 
-**Scripts:** `/srv/monorepo/scripts/nexus-*.sh`
+**Authoritative:** `/srv/monorepo/ops/ai-governance/CONTRACT.md`
 
-### Core Scripts
+### ✅ Safe
+- Read/write to Mem0 collections
+- Semantic search
+- Collection management via subagents
 
-| Script | Purpose |
-|--------|---------|
-| `nexus-investigate.sh` | Deep health verification (4 layers) |
-| `nexus-legacy-detector.sh` | Legacy/architecture violation detection |
-| `nexus-alert.sh` | Persistent alerts with escalation |
-| `nexus-context-window-manager.sh` | Context window monitoring |
-| `nexus-tunnel.sh` | Tunnel ingress automation |
-| `nexus-ufw.sh` | Firewall automation |
-| `nexus-sre.sh` | Autonomous deploy system |
-| `nexus-governance.sh` | Full deploy pipeline |
+### ❌ Forbidden
+- Log API keys or secrets
+- Hardcode credentials
+- Delete collections without backup
+- Expose port externally
 
-### Health Check
+---
+
+## 🏥 Health Check
 
 ```bash
+# Mem0 API
+curl -sf http://localhost:8642/health
+
+# Qdrant collections
+curl -sf -H "api-key: $QDRANT_API_KEY" http://localhost:6333/collections | jq '.result.collections[].name'
+
+# Ollama models
+curl -sf http://localhost:11434/api/tags | jq '.models[].name'
+
+# Full investigation
 nexus-investigate.sh all 3
 ```
 
-**Current:** 9/9 services healthy
+---
+
+## 📁 Key Files
+
+| File | Purpose |
+|------|---------|
+| `SOUL.md` | Security rules + architecture |
+| `docker-compose.yml` | Container definition |
+| `libs/subagents/memory_archivist.py` | Archive/compact/tag |
+| `libs/subagents/collection_manager.py` | Qdrant lifecycle |
+| `libs/memory/manager.py` | Mem0 client |
 
 ---
 
-## Directory Structure
-
-### `/srv/` — Core Services
-
-| Directory | Purpose | Status |
-|-----------|---------|--------|
-| `monorepo/` | Main monorepo (Nexus + Hermes + Mem0) | ✅ ACTIVE |
-| `ops/` | Infrastructure as Code (Terraform) | ✅ ACTIVE |
-| `hermes-second-brain/` | This repo - Knowledge management | ✅ ACTIVE |
-| `fit-tracker-v2/` | Fitness tracking application | ✅ ACTIVE |
-| `hvacr-swarm/` | HVAC automation | ✅ ACTIVE |
-| `edge-tts/` | Edge TTS service | ✅ ACTIVE |
-| `data/` | Persistent data volumes | ✅ ACTIVE |
-| `backups/` | Backup storage | ✅ ACTIVE |
-| `docker-data/` | Docker volumes | ✅ ACTIVE |
-| `models/` | Ollama models | ✅ ACTIVE |
-| `archive/` | Archived projects | ✅ ORGANIZED |
-
-### `/srv/archive/`
-
-- `apps.monitoring/` — Orphaned Prometheus/Grafana config
-- `hvac/` — Empty HVAC project
-
-### `/home/will/` — Development Environment
-
-| Directory | Purpose | Status |
-|-----------|---------|--------|
-| `pc-cel/` | RustDesk remote control | ✅ ACTIVE |
-| `go/` | Go modules (gentle-ai, gopls) | ✅ ACTIVE |
-| `dev/skills/` | Homelab skills (anti-prompt-injection, etc) | ✅ ACTIVE |
-| `mcp-data/memory-keeper/` | Context database | ✅ ACTIVE |
-| `obsidian-vault/` | Personal notes | ✅ ACTIVE |
-| `.local/bin/codex` | Codex CLI binary | ✅ ACTIVE |
-
-### Archived (`/home/will/*.archive`)
-
-- `Documents.archive/` — Old project docs
-- `Desktop/docs.archive/` — Old SPECs and docs
-
----
-
-## Service Health Matrix
-
-| Service | URL | Port | Container | Status |
-|---------|-----|------|-----------|--------|
-| Gym MVP | gym.zappro.site | 4010 | docker | ✅ |
-| Hermes Agent | hermes.zappro.site | 8642 | python | ✅ |
-| API Gateway | api.zappro.site | 4000 | python | ✅ |
-| Chat Service | chat.zappro.site | 3456 | python | ✅ |
-| LLM Gateway | llm.zappro.site | 4002 | node | ✅ |
-| Qdrant DB | qdrant.zappro.site | 6333 | qdrant | ✅ |
-| Coolify | coolify.zappro.site | 8000 | php | ✅ |
-| Gitea Git | git.zappro.site | 3300 | gitea | ✅ |
-| PGAdmin | pgadmin.zappro.site | 4050 | docker | ✅ |
-
----
-
-## Cron Jobs
-
-| Schedule | Command | Purpose |
-|----------|---------|---------|
-| `*/5 * * * *` | `nexus-investigate.sh all 3` | Health check |
-| `*/30 * * * *` | `nexus-cron-legacy.sh scan` | Legacy scan |
-| `0 * * * *` | `nexus-cron-helper.sh status` | Status report |
-
----
-
-## Governance Rules
-
-### Safe Operations (No Approval)
-- Read-only operations (logs, status, inspection)
-- Backups and snapshots
-- Documentation updates
-- Application development in `/srv/monorepo`
-
-### Requires Approval
-- Service restart/stop/start
-- Package installation/upgrade
-- ZFS operations
-- Firewall changes
-- Network modifications
-
-### Forbidden
-- Disk wipe operations
-- Delete `/srv/data`, `/srv/backups`
-- ZFS pool destruction
-- Exposing ports without updating PORTS.md + SUBDOMAINS.md
-
----
-
-## Legacy Detection
+## 🚀 Quick Commands
 
 ```bash
-# Full scan
-nexus-legacy-detector.sh full /srv/monorepo
+# Enter container
+docker exec -it hermes-second-brain bash
 
-# Current status
-✅ 0 architecture violations
-✅ 0 empty files
-✅ 9/9 services healthy
+# View logs
+docker logs hermes-second-brain --tail 50
+
+# Restart
+docker restart hermes-second-brain
+
+# Check Qdrant vectors
+curl -s -H "api-key: $QDRANT_API_KEY" http://localhost:6333/collections/will | jq '.result.vectors_count'
 ```
 
 ---
 
-## Escalation Matrix
-
-| Level | Response Time | Contact | Action |
-|-------|---------------|---------|--------|
-| P1 Critical | 15 min | On-call | Full outage, data loss risk |
-| P2 High | 1 hour | Platform Team | Service degradation |
-| P3 Medium | 4 hours | SRE on-duty | Non-critical issue |
-| P4 Low | 24 hours | Next business day | Documentation, cleanup |
-
----
-
-**Nexus Framework:** 7 modes × 7 agents = 49 specializations
-**Entry:** `nexus.sh --mode <mode>`
-**Docs:** `/srv/monorepo/docs/NEXUS-SRE-GUIDE.md`
-**SOUL.md:** `/srv/hermes-second-brain/SOUL.md`
+**Nexus:** `/srv/monorepo/.claude/vibe-kit/nexus.sh`
+**Governance:** `/srv/monorepo/ops/ai-governance/`
+**Monorepo:** `/srv/monorepo`

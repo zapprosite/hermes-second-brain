@@ -1,10 +1,10 @@
-version: '3.8'
-
 services:
   api:
     build: .
     ports:
       - "8642:8642"
+    env_file:
+      - /srv/monorepo/.env
     environment:
       - MEM0_BACKEND=qdrant
       - MEM0_QDRANT_URL=http://qdrant:6333
@@ -25,6 +25,8 @@ services:
       - "6334:6334"
     volumes:
       - /tank/qdrant:/qdrant/storage
+    env_file:
+      - /srv/monorepo/.env
     environment:
       - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
     restart: unless-stopped
